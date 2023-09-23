@@ -179,9 +179,9 @@ impl Api {
 }
 
 pub trait ModuleTable {
-    fn pre_app_specialize(&mut self, args: &AppSpecializeArgs);
+    fn pre_app_specialize(&mut self, args: &mut AppSpecializeArgs);
     fn post_app_specialize(&mut self, args: &AppSpecializeArgs);
-    fn pre_server_specialize(&mut self, args: &ServerSpecializeArgs);
+    fn pre_server_specialize(&mut self, args: &mut ServerSpecializeArgs);
     fn post_server_specialize(&mut self, args: &ServerSpecializeArgs);
 }
 
@@ -215,9 +215,9 @@ pub fn module_entry<M: Module>(api_table: *mut sys::ApiTable, env: *mut JNIEnv) 
         api_version: sys::ZYGISK_API_VERSION,
         module_impl: null_mut(),
         pre_app_specialize: {
-            unsafe extern "C" fn func(this: *mut c_void, args: *const AppSpecializeArgs) {
+            unsafe extern "C" fn func(this: *mut c_void, args: *mut AppSpecializeArgs) {
                 if let Some(this) = this.cast::<Box<dyn ModuleTable>>().as_mut() {
-                    this.pre_app_specialize(&*args);
+                    this.pre_app_specialize(&mut *args);
                 }
             }
 
@@ -233,9 +233,9 @@ pub fn module_entry<M: Module>(api_table: *mut sys::ApiTable, env: *mut JNIEnv) 
             func
         },
         pre_server_specialize: {
-            unsafe extern "C" fn func(this: *mut c_void, args: *const ServerSpecializeArgs) {
+            unsafe extern "C" fn func(this: *mut c_void, args: *mut ServerSpecializeArgs) {
                 if let Some(this) = this.cast::<Box<dyn ModuleTable>>().as_mut() {
-                    this.pre_server_specialize(&*args);
+                    this.pre_server_specialize(&mut *args);
                 }
             }
 

@@ -62,9 +62,9 @@ pub struct ModuleAbi {
     pub api_version: c_long,
     pub module_impl: *mut c_void,
 
-    pub pre_app_specialize: unsafe extern "C" fn(*mut c_void, *const AppSpecializeArgs),
+    pub pre_app_specialize: unsafe extern "C" fn(*mut c_void, *mut AppSpecializeArgs),
     pub post_app_specialize: unsafe extern "C" fn(*mut c_void, *const AppSpecializeArgs),
-    pub pre_server_specialize: unsafe extern "C" fn(*mut c_void, *const ServerSpecializeArgs),
+    pub pre_server_specialize: unsafe extern "C" fn(*mut c_void, *mut ServerSpecializeArgs),
     pub post_server_specialize: unsafe extern "C" fn(*mut c_void, *const ServerSpecializeArgs),
 }
 
