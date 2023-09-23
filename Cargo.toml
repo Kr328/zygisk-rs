@@ -1,0 +1,16 @@
+[package]
+name = "zygisk-rs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+v2 = []
+v3 = []
+v4 = []
+default = ["v2"]
+
+[dependencies]
+jni-sys = "0.3"
+libc = "0.2"
