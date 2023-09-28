@@ -12,5 +12,5 @@ v4 = []
 default = ["v2"]
 
 [dependencies]
-jni-sys = "0.3"
+jni-sys = "0.4"
 libc = "0.2"
