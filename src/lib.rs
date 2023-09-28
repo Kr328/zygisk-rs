@@ -193,7 +193,7 @@ pub trait Module: ModuleTable {
 macro_rules! register_zygisk_module {
     ($module:ty) => {
         #[no_mangle]
-        pub extern "C" fn zygisk_module_entry(api_table: *mut ::std::ffi::c_void, env: *mut ::jni_sys::JNIEnv) {
+        pub unsafe extern "C" fn zygisk_module_entry(api_table: *mut ::std::ffi::c_void, env: *mut ::jni_sys::JNIEnv) {
             $crate::module_entry::<$module>(api_table.cast(), env)
         }
     };
@@ -203,14 +203,14 @@ macro_rules! register_zygisk_module {
 macro_rules! register_zygisk_companion {
     ($handler:path) => {
         #[no_mangle]
-        pub extern "C" fn zygisk_companion_entry(client: ::std::ffi::c_int) {
+        pub unsafe extern "C" fn zygisk_companion_entry(client: ::std::ffi::c_int) {
             $crate::companion_entry(client, $handler)
         }
     };
 }
 
 #[doc(hidden)]
-pub fn module_entry<M: Module>(api_table: *mut sys::ApiTable, env: *mut JNIEnv) {
+pub unsafe fn module_entry<M: Module>(api_table: *mut sys::ApiTable, env: *mut JNIEnv) {
     let module_table = sys::ModuleAbi {
         api_version: sys::ZYGISK_API_VERSION,
         module_impl: null_mut(),
@@ -253,22 +253,18 @@ pub fn module_entry<M: Module>(api_table: *mut sys::ApiTable, env: *mut JNIEnv) 
     };
 
     let module_table = Box::into_raw(Box::new(module_table));
-    unsafe {
-        if ((*api_table).register_module)(api_table, module_table) == 0 {
-            return;
-        }
-
-        let module: Box<Box<dyn ModuleTable>> = Box::new(Box::new(M::new(Api::new(api_table), env)));
-        (*module_table).module_impl = Box::into_raw(module).cast();
+    if ((*api_table).register_module)(api_table, module_table) == 0 {
+        return;
     }
+
+    let module: Box<Box<dyn ModuleTable>> = Box::new(Box::new(M::new(Api::new(api_table), env)));
+    (*module_table).module_impl = Box::into_raw(module).cast();
 }
 
 #[doc(hidden)]
-pub fn companion_entry(client: c_int, handler: fn(stream: UnixStream)) {
-    unsafe {
-        let nfd = libc::dup(client);
-        if nfd >= 0 {
-            handler(UnixStream::from_raw_fd(nfd))
-        }
+pub unsafe fn companion_entry(client: c_int, handler: fn(stream: UnixStream)) {
+    let nfd = libc::dup(client);
+    if nfd >= 0 {
+        handler(UnixStream::from_raw_fd(nfd))
     }
 }
