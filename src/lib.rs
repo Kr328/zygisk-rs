@@ -40,6 +40,12 @@ unsafe impl Send for Api {}
 
 unsafe impl Sync for Api {}
 
+impl Clone for Api {
+    fn clone(&self) -> Self {
+        Api { table: self.table }
+    }
+}
+
 impl Api {
     unsafe fn new(table: *const sys::ApiTable) -> Api {
         Api { table: &*table }
@@ -178,15 +184,13 @@ impl Api {
     }
 }
 
-pub trait ModuleTable {
+pub trait Module {
+    fn new(api: Api, env: *mut JNIEnv) -> Self;
+
     fn pre_app_specialize(&mut self, args: &mut AppSpecializeArgs);
     fn post_app_specialize(&mut self, args: &AppSpecializeArgs);
     fn pre_server_specialize(&mut self, args: &mut ServerSpecializeArgs);
     fn post_server_specialize(&mut self, args: &ServerSpecializeArgs);
-}
-
-pub trait Module: ModuleTable {
-    fn new(api: Api, env: *mut JNIEnv) -> Self;
 }
 
 #[macro_export]
@@ -194,7 +198,7 @@ macro_rules! register_zygisk_module {
     ($module:ty) => {
         #[no_mangle]
         pub unsafe extern "C" fn zygisk_module_entry(api_table: *mut ::std::ffi::c_void, env: *mut ::jni_sys::JNIEnv) {
-            $crate::module_entry::<$module>(api_table.cast(), env)
+            $crate::_module_entry::<$module>(api_table.cast(), env)
         }
     };
 }
@@ -204,65 +208,64 @@ macro_rules! register_zygisk_companion {
     ($handler:path) => {
         #[no_mangle]
         pub unsafe extern "C" fn zygisk_companion_entry(client: ::std::ffi::c_int) {
-            $crate::companion_entry(client, $handler)
+            $crate::_companion_entry(client, $handler)
         }
     };
 }
 
 #[doc(hidden)]
-pub unsafe fn module_entry<M: Module>(api_table: *mut sys::ApiTable, env: *mut JNIEnv) {
-    let module_table = sys::ModuleAbi {
+pub unsafe fn _module_entry<M: Module>(api_table: *mut sys::ApiTable, env: *mut JNIEnv) {
+    let module_abi = sys::ModuleAbi {
         api_version: sys::ZYGISK_API_VERSION,
         module_impl: null_mut(),
         pre_app_specialize: {
-            unsafe extern "C" fn func(this: *mut c_void, args: *mut AppSpecializeArgs) {
-                if let Some(this) = this.cast::<Box<dyn ModuleTable>>().as_mut() {
+            unsafe extern "C" fn func<M: Module>(this: *mut c_void, args: *mut AppSpecializeArgs) {
+                if let Some(this) = this.cast::<M>().as_mut() {
                     this.pre_app_specialize(&mut *args);
                 }
             }
 
-            func
+            func::<M>
         },
         post_app_specialize: {
-            unsafe extern "C" fn func(this: *mut c_void, args: *const AppSpecializeArgs) {
-                if let Some(this) = this.cast::<Box<dyn ModuleTable>>().as_mut() {
+            unsafe extern "C" fn func<M: Module>(this: *mut c_void, args: *const AppSpecializeArgs) {
+                if let Some(this) = this.cast::<M>().as_mut() {
                     this.post_app_specialize(&*args);
                 }
             }
 
-            func
+            func::<M>
         },
         pre_server_specialize: {
-            unsafe extern "C" fn func(this: *mut c_void, args: *mut ServerSpecializeArgs) {
-                if let Some(this) = this.cast::<Box<dyn ModuleTable>>().as_mut() {
+            unsafe extern "C" fn func<M: Module>(this: *mut c_void, args: *mut ServerSpecializeArgs) {
+                if let Some(this) = this.cast::<M>().as_mut() {
                     this.pre_server_specialize(&mut *args);
                 }
             }
 
-            func
+            func::<M>
         },
         post_server_specialize: {
-            unsafe extern "C" fn func(this: *mut c_void, args: *const ServerSpecializeArgs) {
-                if let Some(this) = this.cast::<Box<dyn ModuleTable>>().as_mut() {
+            unsafe extern "C" fn func<M: Module>(this: *mut c_void, args: *const ServerSpecializeArgs) {
+                if let Some(this) = this.cast::<M>().as_mut() {
                     this.post_server_specialize(&*args);
                 }
             }
 
-            func
+            func::<M>
         },
     };
 
-    let module_table = Box::into_raw(Box::new(module_table));
+    let module_table = Box::into_raw(Box::new(module_abi));
     if ((*api_table).register_module)(api_table, module_table) == 0 {
         return;
     }
 
-    let module: Box<Box<dyn ModuleTable>> = Box::new(Box::new(M::new(Api::new(api_table), env)));
-    (*module_table).module_impl = Box::into_raw(module).cast();
+    (*module_table).module_impl = Box::into_raw(Box::new(M::new(Api::new(api_table), env))).cast();
 }
 
 #[doc(hidden)]
-pub unsafe fn companion_entry(client: c_int, handler: fn(stream: UnixStream)) {
+pub unsafe fn _companion_entry(client: c_int, handler: fn(stream: UnixStream)) {
     let nfd = libc::dup(client);
     if nfd >= 0 {
         handler(UnixStream::from_raw_fd(nfd))
