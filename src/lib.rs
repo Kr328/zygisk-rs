@@ -40,12 +40,6 @@ unsafe impl Send for Api {}
 
 unsafe impl Sync for Api {}
 
-impl Clone for Api {
-    fn clone(&self) -> Self {
-        Api { table: self.table }
-    }
-}
-
 impl Api {
     unsafe fn new(table: *const sys::ApiTable) -> Api {
         Api { table: &*table }
