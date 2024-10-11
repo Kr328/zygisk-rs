@@ -1,6 +1,9 @@
-use std::ffi::{c_char, c_int, c_long, c_void};
+use core::ffi::{c_char, c_int, c_long, c_void};
 
-use jni_sys::{jboolean, jint, jintArray, jlong, jobjectArray, jstring, JNIEnv, JNINativeMethod};
+use typed_jni::{
+    sys::{JNIEnv, JNINativeMethod},
+    Array, JString, LocalObject,
+};
 
 #[cfg(feature = "v2")]
 pub const ZYGISK_API_VERSION: c_long = 2;
@@ -14,37 +17,37 @@ pub const ZYGISK_API_VERSION: c_long = 4;
 #[repr(C)]
 pub struct AppSpecializeArgs<'a> {
     // Required arguments.
-    pub uid: &'a mut jint,
-    pub gid: &'a mut jint,
-    pub gids: &'a mut jintArray,
-    pub runtime_flags: &'a mut jint,
+    pub uid: &'a mut i32,
+    pub gid: &'a mut i32,
+    pub gids: &'a mut LocalObject<'a, Array<i32>>,
+    pub runtime_flags: &'a mut i32,
     #[cfg(any(feature = "v3", feature = "v4"))]
-    pub rlimits: &'a mut jobjectArray,
-    pub mount_external: &'a mut jint,
-    pub se_info: &'a mut jstring,
-    pub nice_name: &'a mut jstring,
-    pub instruction_set: &'a mut jstring,
-    pub app_data_dir: &'a mut jstring,
+    pub rlimits: &'a mut LocalObject<'a, Array<Array<i32>>>,
+    pub mount_external: &'a mut i32,
+    pub se_info: &'a mut LocalObject<'a, JString>,
+    pub nice_name: &'a mut LocalObject<'a, JString>,
+    pub instruction_set: &'a mut LocalObject<'a, JString>,
+    pub app_data_dir: &'a mut LocalObject<'a, JString>,
 
     // Optional arguments.
     #[cfg(any(feature = "v3", feature = "v4"))]
-    pub fds_to_ignore: Option<&'a mut jintArray>,
-    pub is_child_zygote: Option<&'a mut jboolean>,
-    pub is_top_app: Option<&'a mut jboolean>,
-    pub pkg_data_info_list: Option<&'a mut jobjectArray>,
-    pub whitelisted_data_info_list: Option<&'a mut jobjectArray>,
-    pub mount_data_dirs: Option<&'a mut jboolean>,
-    pub mount_storage_dirs: Option<&'a mut jboolean>,
+    pub fds_to_ignore: Option<&'a mut LocalObject<'a, Array<i32>>>,
+    pub is_child_zygote: Option<&'a mut bool>,
+    pub is_top_app: Option<&'a mut bool>,
+    pub pkg_data_info_list: Option<&'a mut Array<JString>>,
+    pub whitelisted_data_info_list: Option<&'a mut Array<JString>>,
+    pub mount_data_dirs: Option<&'a mut bool>,
+    pub mount_storage_dirs: Option<&'a mut bool>,
 }
 
 #[repr(C)]
 pub struct ServerSpecializeArgs<'a> {
-    pub uid: &'a mut jint,
-    pub gid: &'a mut jint,
-    pub gids: &'a mut jintArray,
-    pub runtime_flags: &'a mut jint,
-    pub permitted_capabilities: &'a mut jlong,
-    pub effective_capabilities: &'a mut jlong,
+    pub uid: &'a mut i32,
+    pub gid: &'a mut i32,
+    pub gids: &'a mut LocalObject<'a, Array<i32>>,
+    pub runtime_flags: &'a mut i32,
+    pub permitted_capabilities: &'a mut i64,
+    pub effective_capabilities: &'a mut i64,
 }
 
 pub type ModuleOption = c_int;
